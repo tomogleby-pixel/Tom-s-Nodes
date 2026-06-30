@@ -952,19 +952,54 @@ hiddenFileInput.type="file"; hiddenFileInput.accept="image/*";
 document.body.appendChild(hiddenFileInput);
 let uploadTargetNodeId = null;
 function triggerImageUpload(nodeId){ uploadTargetNodeId = nodeId; hiddenFileInput.value=""; hiddenFileInput.click(); }
-hiddenFileInput.addEventListener("change", ()=>{
+
+async function storeImage(file){
+  // Size checks
+  const sizeMB = file.size / (1024 * 1024);
+  if(sizeMB > 10){
+    toast(`Image rejected — ${sizeMB.toFixed(1)}MB exceeds the 10MB limit`);
+    return null;
+  }
+  if(sizeMB > 2){
+    toast(`Large image (${sizeMB.toFixed(1)}MB) — may be slow to load`);
+  }
+  // Otherwise fall back to a local base64 data URL (offline mode).
+  if(cloudEnabled && currentUser){
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${currentUser.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error } = await supabaseClient.storage
+      .from("mindmap-images")
+      .upload(path, file, { upsert: false });
+    if(error){ console.error("Image upload failed:", error); toast("Image upload failed — stored locally instead"); }
+    else {
+      const { data: urlData } = await supabaseClient.storage
+        .from("mindmap-images")
+        .createSignedUrl(path, 60 * 60 * 24 * 365); // 1-year signed URL
+      if(urlData && urlData.signedUrl) return { url: urlData.signedUrl, path };
+    }
+  }
+  // Offline fallback: base64
+  return new Promise(resolve=>{
+    const reader = new FileReader();
+    reader.onload = ()=> resolve({ url: reader.result, path: null });
+    reader.readAsDataURL(file);
+  });
+}
+
+hiddenFileInput.addEventListener("change", async ()=>{
   const file = hiddenFileInput.files[0];
   if(!file || !uploadTargetNodeId) return;
-  readImageFile(file, (dataUrl)=>{
-    const n = findNode(uploadTargetNodeId);
-    if(n){ pushUndo(); n.image = dataUrl; debouncedSave(); render(); }
-  });
+  const n = findNode(uploadTargetNodeId);
+  if(!n) return;
+  toast("Uploading image…");
+  const result = await storeImage(file);
+  if(!result) return; // rejected (too large)
+  const { url, path } = result;
+  pushUndo();
+  n.image = url;
+  n.imagePath = path || null;
+  debouncedSave(); render();
 });
-function readImageFile(file, cb){
-  const reader = new FileReader();
-  reader.onload = ()=> cb(reader.result);
-  reader.readAsDataURL(file);
-}
 
 wrap.addEventListener("dragover",(ev)=>{ ev.preventDefault(); wrap.classList.add("dropping"); });
 wrap.addEventListener("dragleave",()=>{ wrap.classList.remove("dropping"); });
@@ -978,18 +1013,23 @@ wrap.addEventListener("drop",(ev)=>{
   const overNode = dropTarget && dropTarget.closest && dropTarget.closest(".node");
   const overImageNode = overNode ? findNode(overNode.dataset.nodeId) : null;
 
-  files.forEach((file, i)=>{
-    readImageFile(file, (dataUrl)=>{
-      pushUndo();
-      if(i===0 && overImageNode && overImageNode.type==="image"){
-        overImageNode.image = dataUrl;
-      } else {
-        const world = screenToWorld({x:dropScreen.x+i*30, y:dropScreen.y+i*30});
-        const id = addNode("image", world);
-        findNode(id).image = dataUrl;
-      }
-      debouncedSave(); render();
-    });
+  files.forEach(async (file, i)=>{
+    toast("Uploading image…");
+    const result = await storeImage(file);
+    if(!result) return; // rejected (too large)
+    const { url, path } = result;
+    pushUndo();
+    if(i===0 && overImageNode && overImageNode.type==="image"){
+      overImageNode.image = url;
+      overImageNode.imagePath = path || null;
+    } else {
+      const world = screenToWorld({x:dropScreen.x+i*30, y:dropScreen.y+i*30});
+      const id = addNode("image", world);
+      const node = findNode(id);
+      node.image = url;
+      node.imagePath = path || null;
+    }
+    debouncedSave(); render();
   });
 });
 
@@ -1262,26 +1302,7 @@ async function pushCloudSave(){
   if(!cloudEnabled || !currentUser) return;
   setCloudStatus(`Saving… ${currentUser.email}`, "syncing");
 
-  // Strip base64 image data before cloud save — images can be several MB each
-  // and will cause statement timeouts on Supabase's free tier. The image node
-  // structure (position, title, connections) is preserved; only the raw pixel
-  // data is excluded. Use local Save/Save As to keep full image data on disk.
-  function stripImages(graph){
-    if(!graph) return graph;
-    return {
-      ...graph,
-      nodes: (graph.nodes||[]).map(n=>{
-        const stripped = {...n};
-        if(n.type==="image" && n.image) stripped.image = null;
-        if(n.graph) stripped.graph = stripImages(n.graph);
-        return stripped;
-      }),
-      edges: graph.edges
-    };
-  }
-  const cloudData = { ...data, root: stripImages(data.root) };
-
-  const sizeKB = Math.round(JSON.stringify(cloudData).length / 1024);
+  const sizeKB = Math.round(JSON.stringify(data).length / 1024);
   if(sizeKB > 900){
     setCloudStatus("Map too large for cloud — use local Save", "syncing");
     return;
@@ -1290,7 +1311,7 @@ async function pushCloudSave(){
   const { error } = await supabaseClient
     .from("mindmaps")
     .upsert(
-      { user_id: currentUser.id, data: cloudData, updated_at: new Date().toISOString() },
+      { user_id: currentUser.id, data, updated_at: new Date().toISOString() },
       { onConflict: "user_id" }
     );
   if(error) console.error("Cloud save error:", error);
