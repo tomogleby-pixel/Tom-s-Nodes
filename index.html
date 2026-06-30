@@ -189,8 +189,8 @@
 /* ---------------------------- Cloud sync config ---------------------------- */
 // Fill these in after creating your Supabase project (see SETUP.md).
 // Until both are set, the app runs fully offline (local file Open/Save only).
-const SUPABASE_URL = "https://rvwnvjjddeshiwuhfllb.supabase.co";       // e.g. "https://xxxxxxx.supabase.co"
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2d252ampkZGVzaGl3dWhmbGxiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MzMyNTYsImV4cCI6MjA5ODQwOTI1Nn0.oOFUAYtIX3cbWEmR1fmuWu5NwaTl3ytf-1Pw0BnteUY";  // the public "anon" key, safe to ship client-side
+const SUPABASE_URL = "";       // e.g. "https://xxxxxxx.supabase.co"
+const SUPABASE_ANON_KEY = "";  // the public "anon" key, safe to ship client-side
 
 const cloudEnabled = !!(SUPABASE_URL && SUPABASE_ANON_KEY);
 const supabaseClient = cloudEnabled
@@ -994,6 +994,7 @@ wrap.addEventListener("drop",(ev)=>{
 });
 
 window.addEventListener("keydown",(ev)=>{
+  if(!ev.key) return;
   const tag = (document.activeElement && document.activeElement.tagName) || "";
   if(tag==="INPUT" || tag==="TEXTAREA") return;
 
