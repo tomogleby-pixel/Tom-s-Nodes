@@ -1,0 +1,1299 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Tom's Nodes</title>
+<link id="favicon" rel="icon" type="image/svg+xml" href="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root{
+    --bg:#1d1d1d; --dot:#2a2a2a;
+    --node:#303030; --node-border:#161616;
+    --text:#e8e8e8; --text-dim:#9a9a9a;
+    --green:#30a64f; --note:#4772b3; --image:#cc7a33; --reroute:#888;
+    --sock-idea:#70b2ff;
+    --sel:#ffffff; --active:#ff9f43;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;background:var(--bg);overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--text);user-select:none;}
+  #app{position:relative;width:100vw;height:100vh;}
+  #topbar{
+    position:absolute;top:0;left:0;right:0;min-height:42px;display:flex;flex-wrap:wrap;align-items:center;gap:10px;
+    padding:6px 12px;background:#222;border-bottom:1px solid #161616;z-index:50;font-size:13px;
+  }
+  #btnHelp{
+    width:24px;height:24px;border-radius:50%;background:#333;border:1px solid #161616;color:var(--text);
+    font-size:12px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0;
+  }
+  #btnHelp:hover{background:#3d3d3d;}
+  #breadcrumb{display:flex;align-items:center;gap:6px;flex:1;color:var(--text-dim);overflow:hidden;white-space:nowrap;}
+  #breadcrumb .crumb{cursor:pointer;padding:3px 8px;border-radius:4px;}
+  #breadcrumb .crumb:hover{background:#333;color:var(--text);}
+  #breadcrumb .crumb.current{color:var(--text);font-weight:600;}
+  #topbar button{
+    background:#333;border:1px solid #161616;color:var(--text);border-radius:4px;padding:5px 10px;
+    font-size:12px;cursor:pointer;flex-shrink:0;
+  }
+  #topbar button:hover{background:#3d3d3d;}
+  #appBrand{display:flex;align-items:center;gap:7px;padding:3px 8px 3px 4px;flex-shrink:0;}
+  #appBrand span{font-size:13px;font-weight:600;color:#eee;white-space:nowrap;}
+  #appBrand svg{flex-shrink:0;}
+  #fileLabel{color:#8fb88f;font-size:11px;flex-shrink:0;padding:3px 8px;background:#1a1a1a;border-radius:4px;border:1px solid #161616;}
+  #fileLabel.unsaved{color:#e0b060;}
+  #hint{color:#777;font-size:11px;flex-shrink:0;}
+  #canvasWrap{position:absolute;top:42px;left:0;right:0;bottom:0;overflow:hidden;cursor:default;}
+  #canvasWrap.dropping{outline:3px dashed #70b2ff;outline-offset:-6px;}
+  svg#canvas{position:absolute;top:0;left:0;}
+  .node{cursor:grab;}
+  .node.dragging{cursor:grabbing;}
+  .node-body{fill:var(--node);stroke:var(--node-border);stroke-width:1;}
+  .node-body.selected{stroke:var(--sel);stroke-width:2;}
+  .node-body.active{stroke:var(--active);stroke-width:2.5;}
+  .node-title{fill:#e8e8e8;font-size:12px;font-weight:600;pointer-events:none;}
+  .node-meta{fill:var(--text-dim);font-size:10px;pointer-events:none;}
+  .node-body-text{fill:#cfcfcf;font-size:10px;pointer-events:none;white-space:pre-wrap;}
+  .socket{cursor:crosshair;stroke:#111;stroke-width:1;}
+  .socket:hover{stroke:#fff;stroke-width:1.5;}
+  .noodle{fill:none;stroke-width:2.5;cursor:pointer;}
+  .noodle.selected{stroke-width:3.5;filter:drop-shadow(0 0 3px #fff);}
+  .group-badge{fill:#1d1d1d;stroke:#161616;}
+  #selectBox{fill:rgba(120,170,255,0.15);stroke:#7aa9ff;stroke-width:1;pointer-events:none;}
+  #addMenu{
+    position:absolute;background:#262626;border:1px solid #161616;border-radius:6px;
+    box-shadow:0 6px 20px rgba(0,0,0,0.5);z-index:100;min-width:200px;overflow:hidden;
+  }
+  #addMenu input{
+    width:100%;padding:8px 10px;background:#1d1d1d;border:none;border-bottom:1px solid #161616;
+    color:var(--text);font-size:12px;outline:none;
+  }
+  #addMenu .item{padding:7px 10px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:8px;}
+  #addMenu .item:hover{background:#333;}
+  #addMenu .swatch{width:10px;height:10px;border-radius:2px;}
+  #npanel{
+    position:absolute;top:42px;right:0;bottom:0;width:260px;background:#242424;border-left:1px solid #161616;
+    padding:14px;font-size:12px;overflow-y:auto;z-index:40;
+  }
+  #npanel h3{margin:0 0 10px;font-size:13px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;}
+  #npanel label{display:block;margin:10px 0 4px;color:var(--text-dim);font-size:11px;}
+  #npanel input[type=text], #npanel textarea{
+    width:100%;background:#1a1a1a;border:1px solid #161616;border-radius:4px;color:var(--text);
+    padding:6px 8px;font-size:12px;font-family:inherit;outline:none;
+  }
+  #npanel textarea{resize:vertical;min-height:70px;}
+  #npanel img{max-width:100%;border-radius:4px;margin-top:6px;}
+  #emptyState{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    color:#555;font-size:13px;text-align:center;pointer-events:none;}
+  #toast{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);background:#262626;
+    border:1px solid #161616;padding:7px 14px;border-radius:5px;font-size:12px;opacity:0;
+    transition:opacity .2s;pointer-events:none;z-index:200;}
+  #toast.show{opacity:1;}
+  input[type=file]{display:none;}
+  .inline-input{width:100%;height:100%;background:#1a1a1a;border:1px solid #70b2ff;color:#fff;
+    font-size:11px;font-family:inherit;border-radius:3px;padding:2px 4px;resize:none;outline:none;box-sizing:border-box;}
+  .img-upload-btn{
+    background:#1d1d1d;border:1px solid #161616;color:#ddd;font-size:10px;border-radius:4px;
+    padding:4px 8px;cursor:pointer;width:100%;
+  }
+  .img-upload-btn:hover{background:#2a2a2a;}
+  ::-webkit-scrollbar{width:8px;}::-webkit-scrollbar-thumb{background:#3a3a3a;border-radius:4px;}
+
+  #authOverlay{
+    position:fixed;inset:0;background:#161616;display:flex;align-items:center;justify-content:center;z-index:1000;
+  }
+  #authForm{width:300px;background:#242424;border:1px solid #161616;border-radius:8px;padding:24px;
+    display:flex;flex-direction:column;gap:8px;box-shadow:0 10px 40px rgba(0,0,0,0.5);}
+  #authBrand{display:flex;align-items:center;gap:10px;margin-bottom:4px;}
+  #authBrand h1{font-size:16px;margin:0;color:#eee;}
+  #authSubtitle{color:#999;font-size:11px;margin:0 0 10px;line-height:1.5;}
+  #authForm label{font-size:11px;color:#9a9a9a;margin-top:6px;}
+  #authForm input{background:#1a1a1a;border:1px solid #161616;border-radius:4px;color:#eee;
+    padding:8px 9px;font-size:13px;outline:none;}
+  #authForm input:focus{border-color:#4772b3;}
+  #authSubmit{margin-top:14px;background:#30a64f;border:none;color:#fff;font-weight:600;border-radius:5px;
+    padding:9px;font-size:13px;cursor:pointer;}
+  #authSubmit:hover{background:#36b658;}
+  #authSubmit:disabled{opacity:0.6;cursor:default;}
+  #authError{color:#e0685e;font-size:11px;min-height:14px;margin-top:4px;}
+  #authOfflineRow{margin-top:6px;text-align:center;}
+  #authSkip{background:transparent;border:none;color:#777;font-size:11px;cursor:pointer;text-decoration:underline;}
+  #authSkip:hover{color:#aaa;}
+  #cloudStatus{color:#8aa;font-size:11px;flex-shrink:0;padding:3px 8px;background:#1a1a1a;border-radius:4px;border:1px solid #161616;}
+  #cloudStatus.online{color:#7fcf9a;}
+  #cloudStatus.syncing{color:#e0b060;}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div id="authOverlay">
+  <form id="authForm">
+    <div id="authBrand">
+      <svg viewBox="0 0 64 64" width="34" height="34">
+        <circle cx="32" cy="32" r="30" fill="#f0a23a"></circle>
+        <circle cx="32" cy="32" r="21" fill="#1d1d1d"></circle>
+        <circle cx="32" cy="32" r="12" fill="#30a64f"></circle>
+      </svg>
+      <h1>Tom's Nodes</h1>
+    </div>
+    <p id="authSubtitle">Sign in to sync your maps. Accounts are invite-only.</p>
+    <label>Email</label>
+    <input type="email" id="authEmail" autocomplete="username" required />
+    <label>Password</label>
+    <input type="password" id="authPassword" autocomplete="current-password" required />
+    <button type="submit" id="authSubmit">Sign In</button>
+    <div id="authError"></div>
+    <div id="authOfflineRow">
+      <button type="button" id="authSkip">Continue offline (local file only)</button>
+    </div>
+  </form>
+</div>
+<div id="app">
+  <div id="topbar">
+    <div id="appBrand" title="Tom's Nodes">
+      <svg viewBox="0 0 64 64" width="22" height="22">
+        <circle cx="32" cy="32" r="30" fill="#f0a23a"></circle>
+        <circle cx="32" cy="32" r="21" fill="#1d1d1d"></circle>
+        <circle cx="32" cy="32" r="12" fill="#30a64f"></circle>
+      </svg>
+      <span>Tom's Nodes</span>
+    </div>
+    <div id="breadcrumb"></div>
+    <span id="cloudStatus">Offline mode</span>
+    <button id="btnSignOut" style="display:none;">Sign Out</button>
+    <span id="fileLabel">No file open</span>
+    <button id="btnHelp" title="Shift+A add · Ctrl+G group · drag corner to resize · X delete · F2/dblclick rename · Shift+D duplicate · Shift+Z undo · Ctrl+Shift+Z redo · Ctrl+S save · Ctrl+O open">?</button>
+    <button id="btnNew">New</button>
+    <button id="btnOpen">Open…</button>
+    <button id="btnSave">Save</button>
+    <button id="btnSaveAs">Save As…</button>
+    <input type="file" id="fileInput" accept=".json,application/json" />
+  </div>
+  <div id="canvasWrap">
+    <svg id="canvas" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <pattern id="dotpattern" width="20" height="20" patternUnits="userSpaceOnUse">
+          <circle cx="1" cy="1" r="1" fill="var(--dot)"></circle>
+        </pattern>
+      </defs>
+      <g id="viewport"></g>
+    </svg>
+    <div id="emptyState"></div>
+  </div>
+  <div id="npanel" style="display:none;"></div>
+  <div id="toast"></div>
+</div>
+
+<script>
+(() => {
+"use strict";
+
+/* ---------------------------- Cloud sync config ---------------------------- */
+// Fill these in after creating your Supabase project (see SETUP.md).
+// Until both are set, the app runs fully offline (local file Open/Save only).
+const SUPABASE_URL = "";       // e.g. "https://xxxxxxx.supabase.co"
+const SUPABASE_ANON_KEY = "";  // the public "anon" key, safe to ship client-side
+
+const cloudEnabled = !!(SUPABASE_URL && SUPABASE_ANON_KEY);
+const supabaseClient = cloudEnabled
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
+let currentUser = null;
+let cloudSaveTimer = null;
+
+/* ---------------------------- Config ---------------------------- */
+const TYPE_COLORS = { group:"#30a64f", note:"#4772b3", image:"#cc7a33", reroute:"#888888" };
+const SOCK_COLOR = "#70b2ff";
+const NODE_W = 200, HEADER_H = 26;
+const REROUTE_R = 9;
+
+/* ---------------------------- Sample data ---------------------------- */
+function emptyGraph(){ return { nodes:[], edges:[], viewport:{x:0,y:0,zoom:1} }; }
+
+function makeNode(type, pos, overrides){
+  const id = genId(type[0]+"n");
+  const base = {
+    id, type, title: overrides && overrides.title || defaultTitle(type),
+    body:"", image:null, position:{x:pos.x, y:pos.y},
+  };
+  if(type==="reroute"){
+    base.inputs=[{id:id+"-io",kind:"idea"}];
+    base.outputs=[{id:id+"-io",kind:"idea"}];
+  } else {
+    base.inputs=[{id:id+"-in",kind:"idea"}];
+    base.outputs=[{id:id+"-out",kind:"idea"}];
+  }
+  if(type==="group") base.graph = emptyGraph();
+  return Object.assign(base, overrides||{});
+}
+function defaultTitle(type){
+  return type==="group" ? "New Group" : type==="note" ? "New Note" : type==="image" ? "New Image" : "Reroute";
+}
+function genId(prefix){ return prefix + "_" + Math.random().toString(36).slice(2,9); }
+
+function sampleData(){
+  const world = makeNode("group", {x:80,y:80}, {title:"Worldbuilding"});
+  const n1 = makeNode("note", {x:0,y:0}, {title:"Magic system", body:"Costs scale with the caster's memories."});
+  const n2 = makeNode("note", {x:300,y:-60}, {title:"Cost mechanic", body:"Each spell erodes a recent memory."});
+  const rr = makeNode("reroute", {x:200,y:160}, {title:"side notes"});
+  const n3 = makeNode("note", {x:340,y:200}, {title:"Plot hook", body:"Protagonist forgets their sibling."});
+  world.graph.nodes = [n1,n2,rr,n3];
+  world.graph.edges = [
+    {id:genId("e"), source:n1.id, sourceHandle:n1.outputs[0].id, target:n2.id, targetHandle:n2.inputs[0].id},
+    {id:genId("e"), source:n1.id, sourceHandle:n1.outputs[0].id, target:rr.id, targetHandle:rr.inputs[0].id},
+    {id:genId("e"), source:rr.id, sourceHandle:rr.outputs[0].id, target:n3.id, targetHandle:n3.inputs[0].id},
+  ];
+
+  const launch = makeNode("group", {x:420,y:80}, {title:"Product Launch"});
+  const m1 = makeNode("note", {x:0,y:0}, {title:"Positioning", body:"Faster, calmer alternative to the incumbent."});
+  const m2 = makeNode("note", {x:300,y:0}, {title:"Pricing", body:"Tiered, usage-based after free tier."});
+  launch.graph.nodes = [m1,m2];
+  launch.graph.edges = [{id:genId("e"), source:m1.id, sourceHandle:m1.outputs[0].id, target:m2.id, targetHandle:m2.inputs[0].id}];
+
+  return { version:2, root: { nodes:[world, launch], edges:[], viewport:{x:0,y:0,zoom:1} } };
+}
+
+/* ---------------------------- State ---------------------------- */
+let data = loadFromStorage() || sampleData();
+let path = [];
+let viewport = {x:0,y:0,zoom:1};
+let selection = new Set();
+let activeId = null;
+let dragState = null;
+let nPanelOpen = false;
+let editingField = null;
+
+const svg = document.getElementById("canvas");
+const vp = document.getElementById("viewport");
+const wrap = document.getElementById("canvasWrap");
+const breadcrumbEl = document.getElementById("breadcrumb");
+const npanel = document.getElementById("npanel");
+const emptyState = document.getElementById("emptyState");
+
+function saveToStorage(){ try{ localStorage.setItem("nodeMindMap.v2", JSON.stringify(data)); }catch(e){} }
+function loadFromStorage(){
+  try{
+    const raw = localStorage.getItem("nodeMindMap.v2");
+    if(!raw) return null;
+    return JSON.parse(raw);
+  }catch(e){ return null; }
+}
+let saveTimer=null;
+function debouncedSave(){
+  markDirty();
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(async ()=>{
+    saveToStorage();
+    if(supportsFS && fileHandle){
+      try{ await writeToHandle(fileHandle); markClean(); }
+      catch(e){ /* permission lapsed or file moved — user can re-save manually */ }
+    }
+    if(cloudEnabled && currentUser) await pushCloudSave();
+  }, 600);
+}
+
+/* ---------------------------- Undo / Redo ---------------------------- */
+let undoStack = [], redoStack = [];
+const MAX_HISTORY = 60;
+function pushUndo(){
+  undoStack.push(JSON.stringify({data, path}));
+  if(undoStack.length>MAX_HISTORY) undoStack.shift();
+  redoStack = [];
+}
+function doUndo(){
+  if(undoStack.length===0){ toast("Nothing to undo"); return; }
+  redoStack.push(JSON.stringify({data, path}));
+  const prev = JSON.parse(undoStack.pop());
+  data = prev.data; path = prev.path;
+  selection.clear(); activeId=null; editingField=null;
+  render(); debouncedSave();
+  toast("Undo");
+}
+function doRedo(){
+  if(redoStack.length===0){ toast("Nothing to redo"); return; }
+  undoStack.push(JSON.stringify({data, path}));
+  const next = JSON.parse(redoStack.pop());
+  data = next.data; path = next.path;
+  selection.clear(); activeId=null; editingField=null;
+  render(); debouncedSave();
+  toast("Redo");
+}
+
+function toast(msg){
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.classList.add("show");
+  clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove("show"),1600);
+}
+
+/* ---------------------------- Graph helpers ---------------------------- */
+function currentGraph(){
+  let container = data.root;
+  for(const id of path){
+    const n = container.nodes.find(x=>x.id===id);
+    if(!n || !n.graph) return data.root;
+    container = n.graph;
+  }
+  return container;
+}
+function getNodes(){ return currentGraph().nodes; }
+function getEdges(){ return currentGraph().edges; }
+function findNode(id){ return getNodes().find(n=>n.id===id); }
+
+/* ---------------------------- Rendering ---------------------------- */
+function resizeCanvas(){
+  const r = wrap.getBoundingClientRect();
+  svg.setAttribute("width", r.width);
+  svg.setAttribute("height", r.height);
+  svg.setAttribute("viewBox", `0 0 ${r.width} ${r.height}`);
+}
+window.addEventListener("resize", ()=>{ resizeCanvas(); render(); });
+
+function screenToWorld(p){ return { x:(p.x-viewport.x)/viewport.zoom, y:(p.y-viewport.y)/viewport.zoom }; }
+
+const MIN_W = 120, MIN_H_DEFAULT = 60;
+function nodeWidth(n){ return n.type==="reroute" ? REROUTE_R*2 : (n.width || NODE_W); }
+function nodeHeight(n){
+  if(n.type==="reroute") return REROUTE_R*2;
+  if(n.height) return n.height;
+  if(n.type==="group") return 64;
+  if(n.type==="image") return 170;
+  return 84;
+}
+
+function socketPos(n, socketId, isInput){
+  if(n.type==="reroute"){
+    return { x:n.position.x+REROUTE_R, y:n.position.y+REROUTE_R };
+  }
+  const h = nodeHeight(n);
+  const list = isInput ? n.inputs : n.outputs;
+  const idx = Math.max(0, list.findIndex(s=>s.id===socketId));
+  const count = list.length || 1;
+  const y = n.position.y + HEADER_H + ((h-HEADER_H)/(count+1))*(idx+1);
+  const x = isInput ? n.position.x : n.position.x + nodeWidth(n);
+  return {x,y};
+}
+
+function bezierPath(p1,p2){
+  // Control points pull toward each other in whichever horizontal direction
+  // the target actually is, so a noodle dragged/connected to the left bows
+  // out to the left instead of always bulging to the right.
+  const dist = Math.max(Math.abs(p2.x-p1.x)*0.5, 40);
+  const dx = (p2.x >= p1.x) ? dist : -dist;
+  return `M ${p1.x} ${p1.y} C ${p1.x+dx} ${p1.y}, ${p2.x-dx} ${p2.y}, ${p2.x} ${p2.y}`;
+}
+function svgEl(tag, attrs){
+  const e = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for(const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+
+function render(){
+  vp.innerHTML = "";
+  const r = wrap.getBoundingClientRect();
+  const bg = svgEl("rect", {x:-viewport.x/viewport.zoom-2000, y:-viewport.y/viewport.zoom-2000, width:r.width/viewport.zoom+4000, height:r.height/viewport.zoom+4000, fill:"url(#dotpattern)"});
+  vp.appendChild(bg);
+  vp.setAttribute("transform", `translate(${viewport.x},${viewport.y}) scale(${viewport.zoom})`);
+
+  const nodes = getNodes();
+  const edges = getEdges();
+  emptyState.textContent = nodes.length===0 ? "Empty canvas — press Shift+A to add a node, or drop an image" : "";
+
+  edges.forEach(e=>{
+    const sn = nodes.find(n=>n.id===e.source);
+    const tn = nodes.find(n=>n.id===e.target);
+    if(!sn||!tn) return;
+    const p1 = socketPos(sn, e.sourceHandle, false);
+    const p2 = socketPos(tn, e.targetHandle, true);
+    const path = svgEl("path",{d:bezierPath(p1,p2), class:"noodle"+(selection.has(e.id)?" selected":""), stroke:SOCK_COLOR});
+    path.dataset.edgeId = e.id;
+    path.addEventListener("mousedown",(ev)=>{ ev.stopPropagation(); selectOnly(e.id); });
+    path.addEventListener("dblclick",(ev)=>{
+      ev.stopPropagation();
+      const world = screenToWorld({x:ev.clientX-svg.getBoundingClientRect().left, y:ev.clientY-svg.getBoundingClientRect().top});
+      insertRerouteOnEdge(e.id, world);
+    });
+    vp.appendChild(path);
+  });
+
+  if(dragState && dragState.type==="connect"){
+    const path = svgEl("path",{d:bezierPath(dragState.fromPos, dragState.toPos), class:"noodle", stroke:"#9ad1ff", "stroke-dasharray":"4 3"});
+    vp.appendChild(path);
+  }
+
+  nodes.forEach(n=> vp.appendChild(renderNode(n)) );
+
+  if(dragState && dragState.type==="box"){
+    const x = Math.min(dragState.startWorld.x, dragState.curWorld.x);
+    const y = Math.min(dragState.startWorld.y, dragState.curWorld.y);
+    const w = Math.abs(dragState.curWorld.x - dragState.startWorld.x);
+    const h = Math.abs(dragState.curWorld.y - dragState.startWorld.y);
+    vp.appendChild(svgEl("rect",{id:"selectBox", x,y,width:w,height:h}));
+  }
+
+  renderBreadcrumb();
+  renderNPanel();
+}
+
+function makeForeignInput(x,y,w,h,value,multiline,onCommit){
+  const fo = svgEl("foreignObject",{x,y,width:w,height:h});
+  const el = document.createElement(multiline?"textarea":"input");
+  if(!multiline) el.type="text";
+  el.className="inline-input";
+  el.value = value;
+  fo.appendChild(el);
+  let done=false;
+  function commit(){ if(done) return; done=true; onCommit(el.value); }
+  el.addEventListener("blur", commit);
+  el.addEventListener("keydown",(ev)=>{
+    ev.stopPropagation();
+    if(ev.key==="Enter" && !multiline){ commit(); }
+    else if(ev.key==="Escape"){ done=true; editingField=null; render(); }
+  });
+  setTimeout(()=>{ el.focus(); el.select && el.select(); },0);
+  return fo;
+}
+
+function renderNode(n){
+  const w = nodeWidth(n), h = nodeHeight(n);
+  const g = svgEl("g", {class:"node", transform:`translate(${n.position.x},${n.position.y})`});
+  g.dataset.nodeId = n.id;
+  const color = TYPE_COLORS[n.type] || "#5a5a5a";
+  const isSel = selection.has(n.id), isActive = activeId===n.id;
+
+  if(n.type==="reroute"){
+    const c = svgEl("circle",{cx:REROUTE_R,cy:REROUTE_R,r:REROUTE_R,class:"node-body"+(isSel?" selected":"")+(isActive?" active":""), fill:TYPE_COLORS.reroute});
+    g.appendChild(c);
+    if(editingField && editingField.nodeId===n.id && editingField.field==="title"){
+      g.appendChild(makeForeignInput(REROUTE_R-50, -26, 100, 18, n.title, false, (val)=>{
+        pushUndo(); n.title = val.trim(); editingField=null; debouncedSave(); render();
+      }));
+    } else {
+      const lbl = svgEl("text",{x:REROUTE_R, y:-8, "text-anchor":"middle", class:"node-title node-meta", fill:"#ccc"});
+      lbl.textContent = n.title || "(unnamed)";
+      lbl.style.cursor="text";
+      lbl.addEventListener("dblclick",(ev)=>{ ev.stopPropagation(); editingField={nodeId:n.id,field:"title"}; render(); });
+      g.appendChild(lbl);
+    }
+    const sockId = n.outputs[0].id;
+    const sock = svgEl("circle",{cx:REROUTE_R,cy:REROUTE_R,r:4,class:"socket",fill:SOCK_COLOR});
+    sock.dataset.nodeId=n.id; sock.dataset.socketId=sockId; sock.dataset.isInput="0"; sock.dataset.reroute="1";
+    g.appendChild(sock);
+    return g;
+  }
+
+  const body = svgEl("rect",{x:0,y:0,width:w,height:h,rx:6,ry:6,class:"node-body"+(isSel?" selected":"")+(isActive?" active":"")});
+  g.appendChild(body);
+  const headerPath = svgEl("path",{ d:`M0,6 a6,6 0 0 1 6,-6 H${w-6} a6,6 0 0 1 6,6 V${HEADER_H} H0 Z`, fill: color });
+  g.appendChild(headerPath);
+
+  if(editingField && editingField.nodeId===n.id && editingField.field==="title"){
+    g.appendChild(makeForeignInput(6,3,w-12,HEADER_H-6,n.title,false,(val)=>{
+      pushUndo(); n.title = val.trim()||n.title; editingField=null; debouncedSave(); render();
+    }));
+  } else {
+    const title = svgEl("text",{x:10,y:17,class:"node-title"});
+    title.textContent = n.title;
+    title.style.cursor="text";
+    title.addEventListener("dblclick",(ev)=>{ ev.stopPropagation(); editingField={nodeId:n.id,field:"title"}; render(); });
+    g.appendChild(title);
+  }
+
+  if(n.type==="group"){
+    const badge = svgEl("circle",{cx:w-16, cy:13, r:6, class:"group-badge"});
+    g.appendChild(badge);
+    const bt = svgEl("text",{x:w-19, y:16, "font-size":8, fill:"#9be8a8"});
+    bt.textContent="▦"; g.appendChild(bt);
+    const meta = svgEl("text",{x:10,y:42,class:"node-meta"});
+    meta.textContent = `${n.graph.nodes.length} node${n.graph.nodes.length===1?"":"s"}`;
+    g.appendChild(meta);
+  } else if(n.type==="note"){
+    if(editingField && editingField.nodeId===n.id && editingField.field==="body"){
+      g.appendChild(makeForeignInput(8,HEADER_H+4,w-16,h-HEADER_H-10,n.body,true,(val)=>{
+        pushUndo(); n.body = val; editingField=null; debouncedSave(); render();
+      }));
+    } else {
+      const fo = svgEl("foreignObject",{x:8,y:HEADER_H+4,width:w-16,height:h-HEADER_H-10});
+      const div = document.createElement("div");
+      div.style.cssText="color:#cfcfcf;font-size:10px;line-height:1.4;overflow:hidden;cursor:text;white-space:pre-wrap;width:100%;height:100%;";
+      div.textContent = n.body || "double-click to edit…";
+      if(!n.body) div.style.opacity="0.5";
+      div.addEventListener("dblclick",(ev)=>{ ev.stopPropagation(); editingField={nodeId:n.id,field:"body"}; render(); });
+      div.addEventListener("mousedown",(ev)=>{ ev.stopPropagation(); });
+      fo.appendChild(div);
+      g.appendChild(fo);
+    }
+  } else if(n.type==="image"){
+    if(n.image){
+      const fo = svgEl("foreignObject",{x:6,y:HEADER_H+4,width:w-12,height:h-HEADER_H-10});
+      const img = document.createElement("img");
+      img.src = n.image;
+      img.style.cssText="width:100%;height:100%;object-fit:cover;border-radius:4px;display:block;cursor:pointer;";
+      img.title = "Click to replace image";
+      img.addEventListener("mousedown",(ev)=>{ ev.stopPropagation(); });
+      img.addEventListener("click",(ev)=>{ ev.stopPropagation(); triggerImageUpload(n.id); });
+      fo.appendChild(img);
+      g.appendChild(fo);
+    } else {
+      const fo = svgEl("foreignObject",{x:8,y:HEADER_H+8,width:w-16,height:h-HEADER_H-16});
+      const btn = document.createElement("button");
+      btn.className="img-upload-btn";
+      btn.textContent="📷 Upload image…";
+      btn.addEventListener("mousedown",(ev)=>{ ev.stopPropagation(); });
+      btn.addEventListener("click",(ev)=>{ ev.stopPropagation(); triggerImageUpload(n.id); });
+      const hintDiv = document.createElement("div");
+      hintDiv.style.cssText="color:#777;font-size:9px;margin-top:6px;text-align:center;";
+      hintDiv.textContent="or drag & drop an image file here";
+      fo.appendChild(btn); fo.appendChild(hintDiv);
+      g.appendChild(fo);
+    }
+  }
+
+  (n.inputs||[]).forEach(s=>{
+    const p = socketPos(n, s.id, true);
+    const c = svgEl("circle",{cx:p.x-n.position.x, cy:p.y-n.position.y, r:5, class:"socket", fill:SOCK_COLOR});
+    c.dataset.nodeId=n.id; c.dataset.socketId=s.id; c.dataset.isInput="1";
+    g.appendChild(c);
+  });
+  (n.outputs||[]).forEach(s=>{
+    const p = socketPos(n, s.id, false);
+    const c = svgEl("circle",{cx:p.x-n.position.x, cy:p.y-n.position.y, r:5, class:"socket", fill:SOCK_COLOR});
+    c.dataset.nodeId=n.id; c.dataset.socketId=s.id; c.dataset.isInput="0";
+    g.appendChild(c);
+  });
+
+  const handle = svgEl("rect",{x:w-10,y:h-10,width:10,height:10,class:"resize-handle",fill:"transparent"});
+  handle.dataset.nodeId = n.id;
+  handle.style.cursor = "nwse-resize";
+  const handleGlyph = svgEl("path",{d:`M${w-8},${h-1} L${w-1},${h-8} M${w-4},${h-1} L${w-1},${h-4}`, stroke:"#888", "stroke-width":1});
+  handleGlyph.style.pointerEvents="none";
+  g.appendChild(handle);
+  g.appendChild(handleGlyph);
+
+  return g;
+}
+
+function renderBreadcrumb(){
+  breadcrumbEl.innerHTML = "";
+  const root = document.createElement("span");
+  root.className = "crumb" + (path.length===0?" current":"");
+  root.textContent = "Home";
+  root.onclick = ()=>{ path=[]; selection.clear(); activeId=null; fitView(); render(); };
+  breadcrumbEl.appendChild(root);
+
+  let container = data.root;
+  path.forEach((id, idx)=>{
+    const sep = document.createElement("span"); sep.textContent="›"; breadcrumbEl.appendChild(sep);
+    const n = container.nodes.find(x=>x.id===id);
+    const c = document.createElement("span");
+    c.className = "crumb" + (idx===path.length-1?" current":"");
+    c.textContent = n ? n.title : "?";
+    c.onclick = ()=>{ path = path.slice(0, idx+1); selection.clear(); activeId=null; fitView(); render(); };
+    breadcrumbEl.appendChild(c);
+    if(n && n.graph) container = n.graph;
+  });
+}
+
+function renderNPanel(){
+  if(!nPanelOpen || !activeId){ npanel.style.display="none"; return; }
+  const n = findNode(activeId);
+  if(!n){ npanel.style.display="none"; return; }
+  npanel.style.display="block";
+  npanel.innerHTML = "";
+  const h3 = document.createElement("h3"); h3.textContent="Node Properties"; npanel.appendChild(h3);
+
+  const typeLabel = document.createElement("label"); typeLabel.textContent=`Type: ${n.type}`; npanel.appendChild(typeLabel);
+
+  const titleLabel = document.createElement("label"); titleLabel.textContent="Title"; npanel.appendChild(titleLabel);
+  const titleInput = document.createElement("input"); titleInput.type="text"; titleInput.value=n.title;
+  titleInput.oninput = ()=>{ n.title=titleInput.value; render(); debouncedSave(); };
+  npanel.appendChild(titleInput);
+
+  if(n.type==="note"){
+    const bodyLabel = document.createElement("label"); bodyLabel.textContent="Body"; npanel.appendChild(bodyLabel);
+    const bodyArea = document.createElement("textarea"); bodyArea.value = n.body||"";
+    bodyArea.oninput = ()=>{ n.body=bodyArea.value; render(); debouncedSave(); };
+    npanel.appendChild(bodyArea);
+  } else if(n.type==="image"){
+    const imgLabel = document.createElement("label"); imgLabel.textContent="Image"; npanel.appendChild(imgLabel);
+    if(n.image){ const img=document.createElement("img"); img.src=n.image; npanel.appendChild(img); }
+    const btn = document.createElement("button"); btn.className="img-upload-btn"; btn.style.marginTop="8px";
+    btn.textContent = n.image ? "Replace image…" : "Upload image…";
+    btn.onclick = ()=> triggerImageUpload(n.id);
+    npanel.appendChild(btn);
+  } else if(n.type==="group"){
+    const info = document.createElement("div");
+    info.style.cssText="color:#999;font-size:11px;";
+    info.textContent = `${n.graph.nodes.length} nodes, ${n.graph.edges.length} connections inside.`;
+    npanel.appendChild(info);
+  }
+}
+
+/* ---------------------------- Selection ---------------------------- */
+function selectOnly(id){ selection.clear(); selection.add(id); activeId=id; render(); }
+function toggleSelect(id){ if(selection.has(id)) selection.delete(id); else selection.add(id); activeId=id; render(); }
+function clearSelection(){ selection.clear(); activeId=null; render(); }
+
+/* ---------------------------- View controls ---------------------------- */
+function fitView(){
+  const nodes = getNodes();
+  if(nodes.length===0){ viewport={x:wrap.clientWidth/2,y:wrap.clientHeight/2,zoom:1}; render(); return; }
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  nodes.forEach(n=>{
+    const w=nodeWidth(n), h=nodeHeight(n);
+    minX=Math.min(minX,n.position.x); minY=Math.min(minY,n.position.y);
+    maxX=Math.max(maxX,n.position.x+w); maxY=Math.max(maxY,n.position.y+h);
+  });
+  const pad=60; minX-=pad;minY-=pad;maxX+=pad;maxY+=pad;
+  const r = wrap.getBoundingClientRect();
+  const zoom = Math.min(Math.max(Math.min(r.width/(maxX-minX), r.height/(maxY-minY)),0.15),1.5);
+  const cx=(minX+maxX)/2, cy=(minY+maxY)/2;
+  viewport = { x: r.width/2 - cx*zoom, y: r.height/2 - cy*zoom, zoom };
+  render();
+}
+
+/* ---------------------------- Mouse / pan / zoom ---------------------------- */
+let isPanning=false, panStart=null, panOrigin=null;
+
+svg.addEventListener("wheel",(ev)=>{
+  ev.preventDefault();
+  const rect = svg.getBoundingClientRect();
+  const mouse = {x:ev.clientX-rect.left, y:ev.clientY-rect.top};
+  const worldBefore = screenToWorld(mouse);
+  let zoom = viewport.zoom * (ev.deltaY<0 ? 1.1 : 0.9);
+  zoom = Math.min(Math.max(zoom,0.1),3);
+  viewport.zoom = zoom;
+  const worldAfter = screenToWorld(mouse);
+  viewport.x += (worldAfter.x-worldBefore.x)*zoom;
+  viewport.y += (worldAfter.y-worldBefore.y)*zoom;
+  render();
+},{passive:false});
+
+function eventWorldPos(ev){
+  const rect = svg.getBoundingClientRect();
+  return screenToWorld({x:ev.clientX-rect.left, y:ev.clientY-rect.top});
+}
+
+let lastCursorScreen = null;
+svg.addEventListener("mousemove",(ev)=>{
+  const rect = svg.getBoundingClientRect();
+  lastCursorScreen = {x:ev.clientX-rect.left, y:ev.clientY-rect.top};
+});
+
+svg.addEventListener("mousedown",(ev)=>{
+  closeAddMenu();
+  if(editingField) return;
+  const target = ev.target;
+
+  if(ev.button===1){
+    isPanning=true; panStart={x:ev.clientX,y:ev.clientY}; panOrigin={...viewport};
+    ev.preventDefault(); return;
+  }
+  if(ev.button!==0) return;
+
+  if(target.classList && target.classList.contains("resize-handle")){
+    const nodeId = target.dataset.nodeId;
+    const n = findNode(nodeId);
+    if(n){
+      pushUndo();
+      const world = eventWorldPos(ev);
+      dragState = { type:"resize", nodeId, startWorld:world, startW:nodeWidth(n), startH:nodeHeight(n) };
+    }
+    return;
+  }
+
+  if(target.classList && target.classList.contains("socket")){
+    const nodeId = target.dataset.nodeId, socketId=target.dataset.socketId, isInput=target.dataset.isInput==="1";
+    const node = findNode(nodeId);
+    const fromPos = socketPos(node, socketId, isInput);
+    dragState = { type:"connect", fromNode:nodeId, fromSocket:socketId, fromIsInput:isInput, fromPos, toPos:fromPos };
+    return;
+  }
+
+  const nodeGroup = target.closest && target.closest(".node");
+  if(nodeGroup){
+    const id = nodeGroup.dataset.nodeId;
+    if(!ev.shiftKey){ if(!selection.has(id)) selectOnly(id); else activeId=id; }
+    else toggleSelect(id);
+    const world = eventWorldPos(ev);
+    pushUndo();
+    dragState = { type:"node", startWorld:world, origins:{} };
+    selection.forEach(sid=>{ const sn=findNode(sid); if(sn) dragState.origins[sid]={...sn.position}; });
+    return;
+  }
+
+  clearSelection();
+  const world = eventWorldPos(ev);
+  dragState = { type:"box", startWorld:world, curWorld:world };
+});
+
+window.addEventListener("mousemove",(ev)=>{
+  if(isPanning){
+    viewport.x = panOrigin.x + (ev.clientX-panStart.x);
+    viewport.y = panOrigin.y + (ev.clientY-panStart.y);
+    render(); return;
+  }
+  if(!dragState) return;
+  const world = eventWorldPos(ev);
+  if(dragState.type==="node"){
+    const dx = world.x - dragState.startWorld.x, dy = world.y - dragState.startWorld.y;
+    selection.forEach(id=>{
+      const n = findNode(id), origin = dragState.origins[id];
+      if(n && origin){ n.position.x = origin.x+dx; n.position.y = origin.y+dy; }
+    });
+    render();
+  } else if(dragState.type==="resize"){
+    const n = findNode(dragState.nodeId);
+    if(n){
+      const dx = world.x - dragState.startWorld.x, dy = world.y - dragState.startWorld.y;
+      n.width = Math.max(MIN_W, dragState.startW + dx);
+      n.height = Math.max(MIN_H_DEFAULT, dragState.startH + dy);
+      render();
+    }
+  } else if(dragState.type==="box"){
+    dragState.curWorld = world; render();
+    const x1=Math.min(dragState.startWorld.x,world.x), x2=Math.max(dragState.startWorld.x,world.x);
+    const y1=Math.min(dragState.startWorld.y,world.y), y2=Math.max(dragState.startWorld.y,world.y);
+    selection.clear();
+    getNodes().forEach(n=>{
+      const w=nodeWidth(n), h=nodeHeight(n);
+      if(n.position.x>=x1 && n.position.x+w<=x2 && n.position.y>=y1 && n.position.y+h<=y2) selection.add(n.id);
+    });
+  } else if(dragState.type==="connect"){
+    dragState.toPos = world; render();
+  }
+});
+
+window.addEventListener("mouseup",(ev)=>{
+  if(isPanning){ isPanning=false; return; }
+  if(!dragState) return;
+  if(dragState.type==="connect"){
+    const target = document.elementFromPoint(ev.clientX, ev.clientY);
+    if(target && target.classList && target.classList.contains("socket")){
+      const toNode = target.dataset.nodeId, toSocket = target.dataset.socketId, toIsInput = target.dataset.isInput==="1";
+      tryConnect(dragState.fromNode, dragState.fromSocket, dragState.fromIsInput, toNode, toSocket, toIsInput);
+    } else {
+      const rect = svg.getBoundingClientRect();
+      openAddMenu(ev.clientX-rect.left, ev.clientY-rect.top, {fromNode:dragState.fromNode, fromSocket:dragState.fromSocket, fromIsInput:dragState.fromIsInput});
+    }
+  }
+  if(dragState.type==="node" || dragState.type==="box" || dragState.type==="resize") debouncedSave();
+  dragState=null;
+  // Defer this render to the next tick: rebuilding the SVG synchronously here
+  // would detach the just-clicked element before the browser dispatches the
+  // native click/dblclick event for this same interaction, silently
+  // swallowing double-clicks (e.g. entering a group).
+  setTimeout(render, 0);
+});
+
+function tryConnect(nodeA, sockA, isInputA, nodeB, sockB, isInputB){
+  if(nodeA===nodeB) return;
+  const na = findNode(nodeA), nb = findNode(nodeB);
+  const rerouteInvolved = (na && na.type==="reroute") || (nb && nb.type==="reroute");
+  if(!rerouteInvolved && isInputA===isInputB) return;
+  let sourceNode, sourceSocket, targetNode, targetSocket;
+  if(rerouteInvolved && isInputA===isInputB){
+    sourceNode=nodeA; sourceSocket=sockA; targetNode=nodeB; targetSocket=sockB;
+  } else {
+    sourceNode = isInputA? nodeB:nodeA; sourceSocket = isInputA? sockB:sockA;
+    targetNode = isInputA? nodeA:nodeB; targetSocket = isInputA? sockA:sockB;
+  }
+  const g = currentGraph();
+  const exists = g.edges.some(e=>e.source===sourceNode&&e.sourceHandle===sourceSocket&&e.target===targetNode&&e.targetHandle===targetSocket);
+  if(exists) return;
+  pushUndo();
+  g.edges.push({ id:genId("e"), source:sourceNode, sourceHandle:sourceSocket, target:targetNode, targetHandle:targetSocket });
+  debouncedSave();
+}
+
+function insertRerouteOnEdge(edgeId, world){
+  const g = currentGraph();
+  const e = g.edges.find(x=>x.id===edgeId);
+  if(!e) return;
+  pushUndo();
+  const rr = makeNode("reroute", {x:world.x-REROUTE_R, y:world.y-REROUTE_R});
+  g.nodes.push(rr);
+  g.edges = g.edges.filter(x=>x.id!==edgeId);
+  g.edges.push({id:genId("e"), source:e.source, sourceHandle:e.sourceHandle, target:rr.id, targetHandle:rr.inputs[0].id});
+  g.edges.push({id:genId("e"), source:rr.id, sourceHandle:rr.outputs[0].id, target:e.target, targetHandle:e.targetHandle});
+  debouncedSave(); render();
+}
+
+svg.addEventListener("dblclick",(ev)=>{
+  if(editingField) return;
+  const target = ev.target;
+  const nodeGroup = target.closest && target.closest(".node");
+  if(nodeGroup){
+    const id = nodeGroup.dataset.nodeId;
+    const n = findNode(id);
+    const onTitle = target.classList && target.classList.contains("node-title");
+    if(n && n.type==="group" && !onTitle){
+      enterGroup(id); return;
+    }
+    if(n && n.type==="reroute" && !onTitle){
+      startRename(id); return;
+    }
+    return;
+  }
+  const world = eventWorldPos(ev);
+  openAddMenu(ev.clientX - svg.getBoundingClientRect().left, ev.clientY - svg.getBoundingClientRect().top - 42, null, world);
+});
+
+function enterGroup(id){ path = [...path, id]; selection.clear(); activeId=null; fitView(); }
+
+function startRename(id){
+  if(!id) return;
+  editingField = { nodeId:id, field:"title" };
+  render();
+}
+
+let addMenuEl=null, pendingConnect=null;
+function openAddMenu(x,y, connectFrom, worldOverride){
+  closeAddMenu();
+  pendingConnect = connectFrom||null;
+  const menu = document.createElement("div");
+  menu.id="addMenu";
+  menu.style.left = x+"px"; menu.style.top = (y+42)+"px";
+
+  const input = document.createElement("input");
+  input.placeholder = "Search node type…";
+  menu.appendChild(input);
+
+  const options = [
+    {label:"Group", type:"group", color:TYPE_COLORS.group},
+    {label:"Note", type:"note", color:TYPE_COLORS.note},
+    {label:"Image", type:"image", color:TYPE_COLORS.image},
+    {label:"Reroute", type:"reroute", color:TYPE_COLORS.reroute},
+  ];
+
+  const list = document.createElement("div");
+  function renderList(filter){
+    list.innerHTML="";
+    options.filter(o=>o.label.toLowerCase().includes((filter||"").toLowerCase())).forEach(o=>{
+      const item = document.createElement("div"); item.className="item";
+      const sw = document.createElement("div"); sw.className="swatch"; sw.style.background=o.color;
+      item.appendChild(sw);
+      const lab = document.createElement("span"); lab.textContent=o.label;
+      item.appendChild(lab);
+      item.onclick = ()=>{
+        const world = worldOverride || screenToWorld({x:x, y:y});
+        const newId = addNode(o.type, world);
+        if(pendingConnect){
+          const newNode = findNode(newId);
+          const isInput = !pendingConnect.fromIsInput;
+          const sock = isInput ? newNode.inputs[0].id : newNode.outputs[0].id;
+          tryConnect(pendingConnect.fromNode, pendingConnect.fromSocket, pendingConnect.fromIsInput, newId, sock, isInput);
+        }
+        closeAddMenu(); render();
+      };
+      list.appendChild(item);
+    });
+  }
+  renderList("");
+  input.oninput = ()=>renderList(input.value);
+  input.onkeydown = (e)=>{
+    e.stopPropagation();
+    if(e.key==="Enter"){ const first=list.querySelector(".item"); if(first) first.click(); }
+    else if(e.key==="Escape"){ closeAddMenu(); }
+  };
+  menu.appendChild(list);
+  document.getElementById("app").appendChild(menu);
+  addMenuEl = menu;
+  setTimeout(()=>input.focus(),0);
+  document.addEventListener("mousedown", outsideAddMenu);
+}
+function outsideAddMenu(ev){ if(addMenuEl && !addMenuEl.contains(ev.target)) closeAddMenu(); }
+function closeAddMenu(){
+  if(addMenuEl){ addMenuEl.remove(); addMenuEl=null; pendingConnect=null; document.removeEventListener("mousedown", outsideAddMenu); }
+}
+
+function addNode(type, world){
+  pushUndo();
+  const w = type==="reroute" ? REROUTE_R*2 : NODE_W;
+  const h = type==="reroute" ? REROUTE_R*2 : (type==="image"?170:type==="group"?64:84);
+  const n = makeNode(type, {x:world.x - w/2, y:world.y - h/2});
+  currentGraph().nodes.push(n);
+  debouncedSave(); selectOnly(n.id);
+  return n.id;
+}
+
+function groupSelection(){
+  if(selection.size===0) return;
+  pushUndo();
+  const g = currentGraph();
+  const selNodes = g.nodes.filter(n=>selection.has(n.id));
+  if(selNodes.length===0) return;
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  selNodes.forEach(n=>{
+    const w=nodeWidth(n), h=nodeHeight(n);
+    minX=Math.min(minX,n.position.x); minY=Math.min(minY,n.position.y);
+    maxX=Math.max(maxX,n.position.x+w); maxY=Math.max(maxY,n.position.y+h);
+  });
+  const cx=(minX+maxX)/2, cy=(minY+maxY)/2;
+  const groupNode = makeNode("group", {x:cx-NODE_W/2, y:cy-32}, {title:"New Group"});
+
+  const idSet = new Set(selNodes.map(n=>n.id));
+  const innerEdges = g.edges.filter(e=>idSet.has(e.source) && idSet.has(e.target));
+  const crossingCount = g.edges.filter(e=>(idSet.has(e.source))!==(idSet.has(e.target))).length;
+
+  selNodes.forEach(n=>{ n.position.x -= (minX-80); n.position.y -= (minY-80); });
+  groupNode.graph.nodes = selNodes;
+  groupNode.graph.edges = innerEdges;
+
+  g.nodes = g.nodes.filter(n=>!idSet.has(n.id));
+  g.edges = g.edges.filter(e=> !idSet.has(e.source) && !idSet.has(e.target));
+  g.nodes.push(groupNode);
+
+  selection.clear(); selection.add(groupNode.id); activeId=groupNode.id;
+  debouncedSave(); render();
+  if(crossingCount>0) toast(`Grouped ${selNodes.length} nodes — ${crossingCount} external connection(s) removed`);
+  else toast(`Grouped ${selNodes.length} nodes`);
+}
+
+const hiddenFileInput = document.createElement("input");
+hiddenFileInput.type="file"; hiddenFileInput.accept="image/*";
+document.body.appendChild(hiddenFileInput);
+let uploadTargetNodeId = null;
+function triggerImageUpload(nodeId){ uploadTargetNodeId = nodeId; hiddenFileInput.value=""; hiddenFileInput.click(); }
+hiddenFileInput.addEventListener("change", ()=>{
+  const file = hiddenFileInput.files[0];
+  if(!file || !uploadTargetNodeId) return;
+  readImageFile(file, (dataUrl)=>{
+    const n = findNode(uploadTargetNodeId);
+    if(n){ pushUndo(); n.image = dataUrl; debouncedSave(); render(); }
+  });
+});
+function readImageFile(file, cb){
+  const reader = new FileReader();
+  reader.onload = ()=> cb(reader.result);
+  reader.readAsDataURL(file);
+}
+
+wrap.addEventListener("dragover",(ev)=>{ ev.preventDefault(); wrap.classList.add("dropping"); });
+wrap.addEventListener("dragleave",()=>{ wrap.classList.remove("dropping"); });
+wrap.addEventListener("drop",(ev)=>{
+  ev.preventDefault(); wrap.classList.remove("dropping");
+  const files = [...(ev.dataTransfer.files||[])].filter(f=>f.type.startsWith("image/"));
+  if(files.length===0) return;
+  const rect = svg.getBoundingClientRect();
+  const dropScreen = {x:ev.clientX-rect.left, y:ev.clientY-rect.top};
+  const dropTarget = document.elementFromPoint(ev.clientX, ev.clientY);
+  const overNode = dropTarget && dropTarget.closest && dropTarget.closest(".node");
+  const overImageNode = overNode ? findNode(overNode.dataset.nodeId) : null;
+
+  files.forEach((file, i)=>{
+    readImageFile(file, (dataUrl)=>{
+      pushUndo();
+      if(i===0 && overImageNode && overImageNode.type==="image"){
+        overImageNode.image = dataUrl;
+      } else {
+        const world = screenToWorld({x:dropScreen.x+i*30, y:dropScreen.y+i*30});
+        const id = addNode("image", world);
+        findNode(id).image = dataUrl;
+      }
+      debouncedSave(); render();
+    });
+  });
+});
+
+window.addEventListener("keydown",(ev)=>{
+  const tag = (document.activeElement && document.activeElement.tagName) || "";
+  if(tag==="INPUT" || tag==="TEXTAREA") return;
+
+  if(ev.key.toLowerCase()==="s" && (ev.ctrlKey||ev.metaKey)){
+    ev.preventDefault();
+    if(ev.shiftKey) saveFileAs(); else saveFile();
+    return;
+  }
+  if(ev.key.toLowerCase()==="o" && (ev.ctrlKey||ev.metaKey)){
+    ev.preventDefault(); openFile(); return;
+  }
+  if(ev.key.toLowerCase()==="z" && ev.shiftKey){
+    ev.preventDefault();
+    if(ev.ctrlKey || ev.metaKey) doRedo(); else doUndo();
+    return;
+  }
+  if(ev.key.toLowerCase()==="z" && (ev.ctrlKey||ev.metaKey) && !ev.shiftKey){
+    ev.preventDefault(); doUndo(); return;
+  }
+  if(ev.key.toLowerCase()==="a" && ev.shiftKey){
+    ev.preventDefault();
+    const rect = svg.getBoundingClientRect();
+    const pos = lastCursorScreen || {x:rect.width/2, y:rect.height/2};
+    const world = screenToWorld(pos);
+    openAddMenu(pos.x, pos.y-42, null, world);
+    return;
+  }
+  if(ev.key.toLowerCase()==="g" && ev.ctrlKey){
+    ev.preventDefault(); groupSelection(); return;
+  }
+  if(ev.key==="a" && !ev.shiftKey && !ev.ctrlKey && !ev.metaKey && !ev.altKey){
+    selection = new Set(getNodes().map(n=>n.id)); render(); return;
+  }
+  if(ev.key.toLowerCase()==="a" && ev.altKey){ clearSelection(); return; }
+  if(ev.key==="Home" || ev.key==="."){ fitView(); return; }
+  if(ev.key==="x" || ev.key==="Delete" || ev.key==="Backspace"){ deleteSelection(); return; }
+  if(ev.key==="F2"){ if(activeId) startRename(activeId); return; }
+  if(ev.key.toLowerCase()==="d" && ev.shiftKey){ duplicateSelection(); return; }
+  if(ev.key.toLowerCase()==="n" && !ev.ctrlKey){ nPanelOpen=!nPanelOpen; render(); return; }
+  if(ev.key==="Tab"){
+    ev.preventDefault();
+    if(activeId){ const n=findNode(activeId); if(n && n.type==="group"){ enterGroup(activeId); return; } }
+    if(path.length>0){ path=path.slice(0,-1); fitView(); }
+    return;
+  }
+  if(ev.key==="Escape"){
+    if(path.length>0){ path=path.slice(0,-1); fitView(); }
+    closeAddMenu();
+    return;
+  }
+});
+
+function deleteSelection(){
+  if(selection.size===0) return;
+  pushUndo();
+  const g = currentGraph();
+  g.nodes = g.nodes.filter(n=>!selection.has(n.id));
+  g.edges = g.edges.filter(e=> !selection.has(e.id) && !selection.has(e.source) && !selection.has(e.target));
+  selection.clear(); activeId=null;
+  debouncedSave(); render();
+}
+
+function duplicateSelection(){
+  if(selection.size===0) return;
+  pushUndo();
+  const g = currentGraph();
+  const newSel = new Set();
+  selection.forEach(id=>{
+    const n = g.nodes.find(x=>x.id===id);
+    if(!n) return;
+    const clone = JSON.parse(JSON.stringify(n));
+    clone.id = genId(n.type[0]+"n");
+    clone.position = {x:n.position.x+30, y:n.position.y+30};
+    const suffix = clone.type==="reroute" ? "-io" : null;
+    if(suffix){
+      clone.inputs=[{id:clone.id+suffix,kind:"idea"}]; clone.outputs=[{id:clone.id+suffix,kind:"idea"}];
+    } else {
+      clone.inputs=[{id:clone.id+"-in",kind:"idea"}]; clone.outputs=[{id:clone.id+"-out",kind:"idea"}];
+    }
+    g.nodes.push(clone);
+    newSel.add(clone.id);
+  });
+  selection = newSel; activeId = [...newSel][0]||null;
+  debouncedSave(); render();
+}
+
+/* ---------------------------- File-based persistence ---------------------------- */
+const supportsFS = "showOpenFilePicker" in window;
+let fileHandle = null;
+let currentFileName = null;
+let dirty = false;
+const fileLabelEl = document.getElementById("fileLabel");
+
+function updateFileLabel(){
+  if(!currentFileName){
+    fileLabelEl.textContent = "No file open (working from browser cache)";
+    fileLabelEl.classList.remove("unsaved");
+  } else {
+    fileLabelEl.textContent = (dirty ? "● " : "") + currentFileName;
+    fileLabelEl.classList.toggle("unsaved", dirty);
+  }
+}
+function markDirty(){ dirty = true; updateFileLabel(); }
+function markClean(){ dirty = false; updateFileLabel(); }
+
+function applyLoadedJSON(text, name){
+  try{
+    const parsed = JSON.parse(text);
+    if(!parsed.root) throw new Error("Invalid schema (expected a 'root' graph)");
+    data = parsed; path=[]; selection.clear(); activeId=null;
+    undoStack=[]; redoStack=[];
+    currentFileName = name || "mindmap.json";
+    markClean();
+    saveToStorage();
+    fitView();
+    toast("Opened "+currentFileName);
+  }catch(e){ alert("Failed to open file: "+e.message); }
+}
+
+async function openFile(){
+  if(supportsFS){
+    try{
+      const [handle] = await window.showOpenFilePicker({
+        types:[{description:"Mind Map JSON", accept:{"application/json":[".json"]}}]
+      });
+      fileHandle = handle;
+      const file = await handle.getFile();
+      applyLoadedJSON(await file.text(), handle.name);
+    }catch(e){ if(e.name!=="AbortError") alert("Failed to open file: "+e.message); }
+  } else {
+    fileHandle = null;
+    document.getElementById("fileInput").click();
+  }
+}
+
+async function writeToHandle(handle){
+  const writable = await handle.createWritable();
+  await writable.write(JSON.stringify(data,null,2));
+  await writable.close();
+}
+
+function downloadJSON(){
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href=url; a.download = currentFileName || "mindmap.json"; a.click();
+  URL.revokeObjectURL(url);
+  toast("Downloaded "+(currentFileName||"mindmap.json"));
+}
+
+async function saveFile(){
+  if(supportsFS && fileHandle){
+    try{ await writeToHandle(fileHandle); markClean(); toast("Saved to "+currentFileName); return; }
+    catch(e){ toast("Couldn't write to file — re-pick it with Save As"); }
+  }
+  await saveFileAs();
+}
+
+async function saveFileAs(){
+  if(supportsFS){
+    try{
+      const handle = await window.showSaveFilePicker({
+        suggestedName: currentFileName || "mindmap.json",
+        types:[{description:"Mind Map JSON", accept:{"application/json":[".json"]}}]
+      });
+      fileHandle = handle;
+      await writeToHandle(handle);
+      currentFileName = handle.name;
+      markClean();
+      toast("Saved to "+currentFileName);
+      return;
+    }catch(e){ if(e.name!=="AbortError") toast("Save cancelled"); return; }
+  }
+  downloadJSON();
+}
+
+document.getElementById("btnOpen").onclick = openFile;
+document.getElementById("btnSave").onclick = saveFile;
+document.getElementById("btnSaveAs").onclick = saveFileAs;
+document.getElementById("fileInput").onchange = (ev)=>{
+  const file = ev.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=> applyLoadedJSON(reader.result, file.name);
+  reader.readAsText(file);
+  ev.target.value="";
+};
+updateFileLabel();
+
+/* ---------------------------- Branding ---------------------------- */
+(function setupBranding(){
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'+
+    '<circle cx="32" cy="32" r="30" fill="#f0a23a"/>'+
+    '<circle cx="32" cy="32" r="21" fill="#1d1d1d"/>'+
+    '<circle cx="32" cy="32" r="12" fill="#30a64f"/>'+
+    '</svg>';
+  document.getElementById("favicon").href = "data:image/svg+xml," + encodeURIComponent(svg);
+})();
+document.getElementById("btnNew").onclick = ()=>{
+  const ok = confirm("Start a new blank mind map? This clears the current canvas (you can still Undo, and Save first if you want to keep it).");
+  if(!ok) return;
+  pushUndo();
+  data = { version:2, root: emptyGraph() };
+  path=[]; selection.clear(); activeId=null;
+  fileHandle = null; currentFileName = null;
+  markClean();
+  saveToStorage();
+  if(cloudEnabled && currentUser) pushCloudSave();
+  fitView();
+  toast("New mind map");
+};
+
+/* ---------------------------- Auth + cloud sync ---------------------------- */
+const authOverlay = document.getElementById("authOverlay");
+const authForm = document.getElementById("authForm");
+const authError = document.getElementById("authError");
+const authSubmit = document.getElementById("authSubmit");
+const cloudStatusEl = document.getElementById("cloudStatus");
+const btnSignOut = document.getElementById("btnSignOut");
+
+function setCloudStatus(text, cls){
+  cloudStatusEl.textContent = text;
+  cloudStatusEl.className = cls || "";
+}
+
+function startApp(){ resizeCanvas(); fitView(); render(); }
+function showApp(){ authOverlay.style.display = "none"; startApp(); }
+
+if(!cloudEnabled){
+  document.getElementById("authSubtitle").textContent =
+    "Cloud sync isn't configured yet — running in local-file-only mode.";
+  document.getElementById("authEmail").required = false;
+  document.getElementById("authPassword").required = false;
+  authSubmit.style.display = "none";
+}
+
+document.getElementById("authSkip").onclick = ()=>{
+  setCloudStatus("Offline mode");
+  showApp();
+};
+
+async function loadCloudMap(){
+  setCloudStatus("Syncing…", "syncing");
+  const { data: row, error } = await supabaseClient
+    .from("mindmaps").select("data").eq("user_id", currentUser.id).maybeSingle();
+  if(error){ console.error(error); setCloudStatus("Cloud error — using local cache", "syncing"); return; }
+  if(row && row.data){
+    data = row.data;
+  } else {
+    data = { version:2, root: emptyGraph() };
+    await supabaseClient.from("mindmaps").upsert({ user_id: currentUser.id, data });
+  }
+  path=[]; selection.clear(); activeId=null; undoStack=[]; redoStack=[];
+  setCloudStatus(`Synced — ${currentUser.email}`, "online");
+}
+
+async function pushCloudSave(){
+  if(!cloudEnabled || !currentUser) return;
+  setCloudStatus(`Saving… ${currentUser.email}`, "syncing");
+  const { error } = await supabaseClient.from("mindmaps")
+    .upsert({ user_id: currentUser.id, data, updated_at: new Date().toISOString() });
+  setCloudStatus(error ? "Cloud save failed" : `Synced — ${currentUser.email}`, error ? "syncing" : "online");
+}
+
+authForm.addEventListener("submit", async (ev)=>{
+  ev.preventDefault();
+  if(!cloudEnabled) return;
+  authError.textContent = "";
+  authSubmit.disabled = true; authSubmit.textContent = "Signing in…";
+  const email = document.getElementById("authEmail").value.trim();
+  const password = document.getElementById("authPassword").value;
+  const { data: authData, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  authSubmit.disabled = false; authSubmit.textContent = "Sign In";
+  if(error){
+    authError.textContent = error.message || "Sign in failed. Check your email/password, or ask the admin to invite you.";
+    return;
+  }
+  currentUser = authData.user;
+  btnSignOut.style.display = "inline-block";
+  await loadCloudMap();
+  showApp();
+});
+
+btnSignOut.onclick = async ()=>{
+  if(cloudEnabled) await supabaseClient.auth.signOut();
+  location.reload();
+};
+
+(async function initAuth(){
+  if(!cloudEnabled) return; // wait for "Continue offline" click
+  const { data: sessionData } = await supabaseClient.auth.getSession();
+  if(sessionData && sessionData.session){
+    currentUser = sessionData.session.user;
+    btnSignOut.style.display = "inline-block";
+    await loadCloudMap();
+    showApp();
+  }
+})();
+
+})();
+</script>
+</body>
+</html>
